@@ -111,9 +111,8 @@ export default function LaporanRekapPage() {
       csvContent += 'No,Tanggal,Lahan,Komoditas,Jenis Pekerjaan,Biaya (Rp),Foto Dokumentasi,Keterangan\r\n';
       reportData.pekerjaan.forEach((p, idx) => {
         const fotoUrl = p.foto ? `${UPLOAD_BASE_URL}/${p.foto}` : '-';
-        csvContent += `${idx + 1},"${p.tanggal}","${p.nama_lahan}","${p.komoditas || '-'}","${
-          p.jenis_pekerjaan
-        }",${p.biaya},"${fotoUrl}","${(p.keterangan || '').replace(/"/g, '""')}"\r\n`;
+        csvContent += `${idx + 1},"${p.tanggal}","${p.nama_lahan}","${p.komoditas || '-'}","${p.jenis_pekerjaan
+          }",${p.biaya},"${fotoUrl}","${(p.keterangan || '').replace(/"/g, '""')}"\r\n`;
       });
       csvContent += `\r\nTotal Biaya Kerja Lahan,,,,,${reportData.summary.total_biaya_kerja},,\r\n\r\n`;
 
@@ -121,23 +120,19 @@ export default function LaporanRekapPage() {
       csvContent += '=== 2. REKAPITULASI UPAH PEKERJA YANG SUDAH DIBAYARKAN ===\r\n';
       csvContent += 'No,Nama Pekerja,Jabatan,Kehadiran (Hari),Upah Sudah Dibayar (Rp),Upah Belum Dibayar (Rp),Total Upah (Rp),Status Bayar\r\n';
       (reportData.rekap_pekerja || []).forEach((pk, idx) => {
-        csvContent += `${idx + 1},"${pk.nama_pekerja}","${pk.jabatan}",${pk.total_hari},${
-          pk.total_upah_dibayarkan
-        },${pk.total_upah_belum_dibayar},${pk.total_upah},"${pk.status_bayar}"\r\n`;
+        csvContent += `${idx + 1},"${pk.nama_pekerja}","${pk.jabatan}",${pk.total_hari},${pk.total_upah_dibayarkan
+          },${pk.total_upah_belum_dibayar},${pk.total_upah},"${pk.status_bayar}"\r\n`;
       });
-      csvContent += `\r\nTotal Upah Pekerja Sudah Dibayarkan,,,,${
-        reportData.summary.total_upah_dibayarkan || reportData.summary.total_upah_absensi
-      },,,\r\n\r\n`;
+      csvContent += `\r\nTotal Upah Pekerja Sudah Dibayarkan,,,,${reportData.summary.total_upah_dibayarkan || reportData.summary.total_upah_absensi
+        },,,\r\n\r\n`;
 
       // 3. Absensi Pekerja Section
       csvContent += '=== 3. RINCIAN LOG ABSENSI & UPAH HARIAN ===\r\n';
       csvContent += 'No,Tanggal,Nama Pekerja,Jabatan,Lokasi Lahan,Status Kehadiran,Upah (Rp),Status Pembayaran,Tanggal Bayar,Keterangan\r\n';
       reportData.absensi.forEach((a, idx) => {
-        csvContent += `${idx + 1},"${a.tanggal}","${a.nama_pekerja}","${a.jabatan}","${
-          a.nama_lahan
-        }","${a.status_kehadiran}",${a.upah_dibayarkan},"${a.status_pembayaran || 'Sudah Dibayar'}","${
-          a.tanggal_bayar || '-'
-        }","${(a.keterangan || '').replace(/"/g, '""')}"\r\n`;
+        csvContent += `${idx + 1},"${a.tanggal}","${a.nama_pekerja}","${a.jabatan}","${a.nama_lahan
+          }","${a.status_kehadiran}",${a.upah_dibayarkan},"${a.status_pembayaran || 'Sudah Dibayar'}","${a.tanggal_bayar || '-'
+          }","${(a.keterangan || '').replace(/"/g, '""')}"\r\n`;
       });
 
       csvContent += `\r\nTotal Upah Absensi,,,,,,${reportData.summary.total_upah_absensi},,,\r\n`;
@@ -279,10 +274,10 @@ export default function LaporanRekapPage() {
               {startDate && endDate
                 ? `${formatTanggalIndo(startDate)} s/d ${formatTanggalIndo(endDate)}`
                 : startDate
-                ? `Mulai ${formatTanggalIndo(startDate)}`
-                : endDate
-                ? `Sampai ${formatTanggalIndo(endDate)}`
-                : 'Semua Periode Tercatat'}
+                  ? `Mulai ${formatTanggalIndo(startDate)}`
+                  : endDate
+                    ? `Sampai ${formatTanggalIndo(endDate)}`
+                    : 'Semua Periode Tercatat'}
             </p>
           </div>
 
@@ -290,7 +285,7 @@ export default function LaporanRekapPage() {
             <p className="font-semibold text-slate-700">
               Tanggal Cetak: {formatTanggalIndo(new Date(), true)}
             </p>
-            <p className="text-slate-400 mt-0.5">Dicetak via Sistem RekapTani</p>
+            <p className="text-slate-400 mt-0.5">Dicetak via Sistem Acil Jaya Tani</p>
           </div>
         </div>
 
@@ -507,7 +502,7 @@ export default function LaporanRekapPage() {
                     <td className="py-2.5 px-3 text-right text-blue-800">
                       {formatRupiah(
                         reportData.summary.total_upah_dibayarkan ||
-                          reportData.summary.total_upah_absensi
+                        reportData.summary.total_upah_absensi
                       )}
                     </td>
                     <td></td>

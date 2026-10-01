@@ -49,7 +49,7 @@ export default function LoginPage() {
             />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
-            RekapTani
+            Acil Jaya Tani
           </h1>
           <p className="text-sm text-slate-400 mt-1">
             Sistem Informasi Rekap Pertanian & Absensi Pekerja
@@ -121,7 +121,7 @@ export default function LoginPage() {
 
         {/* Footer info */}
         <p className="text-center text-xs text-slate-500 mt-6">
-          &copy; {new Date().getFullYear()} RekapTani • Platform Kerja Lahan Pertanian
+          &copy; {new Date().getFullYear()} Acil Jaya Tani • Platform Kerja Lahan Pertanian
         </p>
       </div>
     </div>

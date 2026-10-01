@@ -91,9 +91,8 @@ export default function Sidebar({ isOpen, onClose }) {
 
       {/* Sidebar Panel */}
       <aside
-        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${
-          isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
-        }`}
+        className={`fixed top-0 bottom-0 left-0 z-40 w-64 bg-slate-900 text-white flex flex-col transition-transform duration-300 ease-in-out lg:translate-x-0 ${isOpen ? 'translate-x-0 shadow-2xl' : '-translate-x-full'
+          }`}
       >
         {/* Brand Header */}
         <div className="flex h-16 items-center justify-between px-6 border-b border-slate-800">
@@ -103,7 +102,7 @@ export default function Sidebar({ isOpen, onClose }) {
             </div>
             <div>
               <h1 className="font-extrabold text-base tracking-tight text-white leading-tight">
-                RekapTani
+                Acil Jaya Tani
               </h1>
               <p className="text-[11px] font-medium text-brand-300">
                 Kerja Lahan & Absensi
@@ -137,10 +136,9 @@ export default function Sidebar({ isOpen, onClose }) {
                   if (window.innerWidth < 1024) onClose();
                 }}
                 className={({ isActive }) =>
-                  `flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${
-                    isActive
-                      ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30'
-                      : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
+                  `flex items-center justify-between px-3.5 py-3 rounded-xl text-sm font-semibold transition-all duration-200 group ${isActive
+                    ? 'bg-brand-600 text-white shadow-lg shadow-brand-600/30'
+                    : 'text-slate-300 hover:bg-slate-800/80 hover:text-white'
                   }`
                 }
               >
@@ -148,19 +146,17 @@ export default function Sidebar({ isOpen, onClose }) {
                   <>
                     <div className="flex items-center gap-3">
                       <Icon
-                        className={`h-5 w-5 transition-transform duration-200 group-hover:scale-110 ${
-                          isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-400'
-                        }`}
+                        className={`h-5 w-5 transition-transform duration-200 group-hover:scale-110 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-brand-400'
+                          }`}
                       />
                       <span>{item.label}</span>
                     </div>
                     {item.badge && (
                       <span
-                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${
-                          isActive
+                        className={`text-[10px] font-bold px-2 py-0.5 rounded-full ${isActive
                             ? 'bg-brand-700 text-brand-100'
                             : 'bg-slate-800 text-brand-300 border border-brand-500/20'
-                        }`}
+                          }`}
                       >
                         {item.badge}
                       </span>
