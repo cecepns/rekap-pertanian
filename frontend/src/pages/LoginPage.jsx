@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
-import { Sprout, Lock, User, Eye, EyeOff, Loader2, ShieldCheck, Sparkles } from 'lucide-react';
+import { Lock, User, Eye, EyeOff, Loader2, ShieldCheck } from 'lucide-react';
 import { useAuth } from '@/context/AuthContext';
 import toast from 'react-hot-toast';
+import logoImg from '@/assets/logo.png';
 
 export default function LoginPage() {
   const navigate = useNavigate();
@@ -31,11 +32,6 @@ export default function LoginPage() {
     }
   };
 
-  const handleQuickLogin = (userVal, passVal) => {
-    setUsername(userVal);
-    setPassword(passVal);
-  };
-
   return (
     <div className="min-h-screen flex items-center justify-center bg-slate-900 px-4 py-8 relative overflow-hidden">
       {/* Background glowing effects */}
@@ -45,8 +41,12 @@ export default function LoginPage() {
       <div className="w-full max-w-md relative z-10">
         {/* Logo & Brand Header */}
         <div className="text-center mb-8">
-          <div className="inline-flex h-16 w-16 items-center justify-center rounded-2xl bg-gradient-to-tr from-brand-600 to-emerald-400 text-white shadow-xl shadow-brand-500/25 mb-4">
-            <Sprout className="h-9 w-9 stroke-[2.2]" />
+          <div className="inline-flex items-center justify-center p-2 rounded-2xl bg-white/5 border border-white/10 shadow-xl shadow-brand-500/10 mb-4 backdrop-blur-sm">
+            <img
+              src={logoImg}
+              alt="Logo Rekap Pertanian"
+              className="h-16 w-16 sm:h-20 sm:w-20 object-contain drop-shadow-md rounded-xl"
+            />
           </div>
           <h1 className="text-2xl sm:text-3xl font-extrabold text-white tracking-tight">
             RekapTani
@@ -117,42 +117,6 @@ export default function LoginPage() {
               Masuk Sekarang
             </button>
           </form>
-
-          {/* Quick Demo Accounts Helper */}
-          <div className="mt-8 pt-6 border-t border-slate-700/80">
-            <p className="text-[11px] font-bold text-slate-400 uppercase tracking-wider mb-2.5 flex items-center gap-1.5">
-              <Sparkles className="h-3.5 w-3.5 text-brand-400" />
-              Pilih Akun Demo Cepat:
-            </p>
-            <div className="grid grid-cols-3 gap-2">
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('admin', 'admin123')}
-                className="rounded-xl border border-slate-700 bg-slate-900/60 p-2 text-center hover:bg-slate-700 transition-colors group"
-              >
-                <p className="text-xs font-bold text-white group-hover:text-brand-300">Admin</p>
-                <p className="text-[10px] text-slate-400">admin123</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('mandor', 'mandor123')}
-                className="rounded-xl border border-slate-700 bg-slate-900/60 p-2 text-center hover:bg-slate-700 transition-colors group"
-              >
-                <p className="text-xs font-bold text-white group-hover:text-brand-300">Mandor</p>
-                <p className="text-[10px] text-slate-400">mandor123</p>
-              </button>
-
-              <button
-                type="button"
-                onClick={() => handleQuickLogin('pemilik', 'pemilik123')}
-                className="rounded-xl border border-slate-700 bg-slate-900/60 p-2 text-center hover:bg-slate-700 transition-colors group"
-              >
-                <p className="text-xs font-bold text-white group-hover:text-brand-300">Pemilik</p>
-                <p className="text-[10px] text-slate-400">pemilik123</p>
-              </button>
-            </div>
-          </div>
         </div>
 
         {/* Footer info */}
