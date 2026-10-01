@@ -60,11 +60,18 @@
   background: #94a3b8;
 }
 
-/* Print Styles */
+/* Print & PDF Export Styles */
 @media print {
+  @page {
+    size: auto;
+    margin: 12mm 10mm;
+  }
+
   body {
     background-color: white !important;
-    color: black !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
   }
 
   header, aside, button, nav, .print\:hidden {
@@ -75,5 +82,22 @@
     padding: 0 !important;
     margin: 0 !important;
     max-width: 100% !important;
+  }
+
+  table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  tr, .break-inside-avoid {
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+  }
+
+  img {
+    max-width: 100% !important;
+    page-break-inside: avoid !important;
+    break-inside: avoid !important;
+    display: block !important;
   }
 }

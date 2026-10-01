@@ -15,6 +15,7 @@ import AbsensiPage from '@/pages/AbsensiPage';
 import JenisPekerjaanPage from '@/pages/JenisPekerjaanPage';
 import UsersPage from '@/pages/UsersPage';
 import LaporanRekapPage from '@/pages/LaporanRekapPage';
+import UpahPekerjaPage from '@/pages/UpahPekerjaPage';
 
 function ProtectedRoute({ children, adminOnly = false }) {
   const { isAuthenticated, isAdmin, loading } = useAuth();
@@ -90,6 +91,7 @@ export default function App() {
               <Route path="pekerjaan" element={<PekerjaanLahanPage />} />
               <Route path="lahan" element={<LahanPage />} />
               <Route path="absensi" element={<AbsensiPage />} />
+              <Route path="upah-pekerja" element={<UpahPekerjaPage />} />
               <Route path="pekerja" element={<PekerjaPage />} />
               <Route path="jenis-pekerjaan" element={<JenisPekerjaanPage />} />
               <Route

@@ -61,6 +61,14 @@ export const API_ENDPOINTS = {
     BATCH: '/absensi/batch',
     UPDATE: (id) => `/absensi/${id}`,
     DELETE: (id) => `/absensi/${id}`,
+    TOGGLE_STATUS: (id) => `/absensi/${id}/status-pembayaran`,
+    BULK_BAYAR: '/absensi/bulk-bayar',
+  },
+
+  UPAH: {
+    REKAP: '/upah/rekap',
+    TOGGLE_STATUS: (id) => `/absensi/${id}/status-pembayaran`,
+    BULK_BAYAR: '/absensi/bulk-bayar',
   },
 
   LAPORAN: {

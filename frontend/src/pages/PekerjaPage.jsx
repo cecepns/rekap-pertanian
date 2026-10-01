@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useCallback } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Users,
   Plus,
@@ -300,9 +301,15 @@ export default function PekerjaPage() {
                           <div className="font-semibold text-slate-800">
                             {pekerja.total_kehadiran} hari kerja
                           </div>
-                          <div className="text-emerald-700 font-bold mt-0.5">
+                          <div className="text-emerald-700 font-extrabold mt-0.5">
                             {formatRupiah(pekerja.total_upah_diterima)}
                           </div>
+                          <Link
+                            to={`/upah-pekerja?search=${encodeURIComponent(pekerja.nama)}`}
+                            className="text-[11px] text-brand-600 hover:text-brand-800 font-bold inline-flex items-center gap-0.5 mt-1"
+                          >
+                            Rincian Upah →
+                          </Link>
                         </td>
 
                         <td className="py-4 px-4">

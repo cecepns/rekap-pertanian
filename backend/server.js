@@ -75,10 +75,23 @@ const pool = mysql.createPool({
   timezone: '+07:00',
 });
 
-// Test Database Connection
+// Test Database Connection & Auto Migration
 pool.getConnection()
-  .then((conn) => {
+  .then(async (conn) => {
     console.log('✅ Terhubung ke database MySQL:', process.env.DB_NAME || 'rekap_pertanian_db');
+    try {
+      const [cols] = await conn.query("SHOW COLUMNS FROM absensi_pekerja LIKE 'status_pembayaran'");
+      if (cols.length === 0) {
+        await conn.query(`
+          ALTER TABLE absensi_pekerja 
+          ADD COLUMN status_pembayaran ENUM('Sudah Dibayar', 'Belum Dibayar') NOT NULL DEFAULT 'Sudah Dibayar' AFTER upah_dibayarkan,
+          ADD COLUMN tanggal_bayar DATE NULL AFTER status_pembayaran;
+        `);
+        console.log('✅ Auto migration: kolom status_pembayaran & tanggal_bayar berhasil ditambahkan');
+      }
+    } catch (migErr) {
+      console.warn('Migration check note:', migErr.message);
+    }
     conn.release();
   })
   .catch((err) => {
@@ -108,10 +121,15 @@ app.get('/api/dashboard/stats', async (req, res) => {
       "SELECT COUNT(*) AS total_pekerja, SUM(CASE WHEN status = 'Aktif' THEN 1 ELSE 0 END) AS pekerja_aktif FROM pekerja"
     );
 
-    // 4. Total Biaya Upah Absensi
-    const [[{ total_absensi, total_upah_absensi }]] = await pool.query(
-      'SELECT COUNT(*) AS total_absensi, COALESCE(SUM(upah_dibayarkan), 0) AS total_upah_absensi FROM absensi_pekerja'
-    );
+    // 4. Total Biaya Upah Absensi (Termasuk Total Sudah Dibayar vs Belum Dibayar)
+    const [[{ total_absensi, total_upah_absensi, total_upah_dibayarkan, total_upah_belum_dibayar }]] = await pool.query(`
+      SELECT 
+        COUNT(*) AS total_absensi, 
+        COALESCE(SUM(upah_dibayarkan), 0) AS total_upah_absensi,
+        COALESCE(SUM(CASE WHEN status_pembayaran = 'Sudah Dibayar' THEN upah_dibayarkan ELSE 0 END), 0) AS total_upah_dibayarkan,
+        COALESCE(SUM(CASE WHEN status_pembayaran = 'Belum Dibayar' THEN upah_dibayarkan ELSE 0 END), 0) AS total_upah_belum_dibayar
+      FROM absensi_pekerja
+    `);
 
     // 5. Total Pengeluaran Keseluruhan (Pekerjaan Lahan + Upah Absensi)
     const total_pengeluaran = Number(total_biaya_kerja) + Number(total_upah_absensi);
@@ -194,6 +212,8 @@ app.get('/api/dashboard/stats', async (req, res) => {
         pekerja_aktif: Number(pekerja_aktif || 0),
         total_absensi: Number(total_absensi),
         total_upah_absensi: Number(total_upah_absensi),
+        total_upah_dibayarkan: Number(total_upah_dibayarkan),
+        total_upah_belum_dibayar: Number(total_upah_belum_dibayar),
         total_pengeluaran,
         biaya_per_lahan: biayaPerLahan,
         jenis_pekerjaan_stats: jenisPekerjaanStats,
@@ -903,7 +923,7 @@ app.delete('/api/pekerja/:id', async (req, res) => {
 // 5. ABSENSI PEKERJA (INPUT KITA SENDIRI)
 // ==========================================
 
-// GET /api/absensi (pagination, search, filter tanggal/pekerja/lahan/status)
+// GET /api/absensi (pagination, search, filter tanggal/pekerja/lahan/status/status_pembayaran)
 app.get('/api/absensi', async (req, res) => {
   try {
     const page = Math.max(1, parseInt(req.query.page || '1', 10));
@@ -913,6 +933,7 @@ app.get('/api/absensi', async (req, res) => {
     const pekerja_id = req.query.pekerja_id ? parseInt(req.query.pekerja_id, 10) : null;
     const lahan_id = req.query.lahan_id ? parseInt(req.query.lahan_id, 10) : null;
     const status_kehadiran = (req.query.status_kehadiran || '').trim();
+    const status_pembayaran = (req.query.status_pembayaran || '').trim();
     const startDate = (req.query.startDate || '').trim();
     const endDate = (req.query.endDate || '').trim();
     const tanggal = (req.query.tanggal || '').trim();
@@ -941,6 +962,11 @@ app.get('/api/absensi', async (req, res) => {
       params.push(status_kehadiran);
     }
 
+    if (status_pembayaran) {
+      whereClauses.push('a.status_pembayaran = ?');
+      params.push(status_pembayaran);
+    }
+
     if (tanggal) {
       whereClauses.push('a.tanggal = ?');
       params.push(tanggal);
@@ -958,7 +984,11 @@ app.get('/api/absensi', async (req, res) => {
     const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
 
     const [[countResult]] = await pool.query(
-      `SELECT COUNT(*) AS total, COALESCE(SUM(a.upah_dibayarkan), 0) AS total_upah_filtered 
+      `SELECT 
+         COUNT(*) AS total, 
+         COALESCE(SUM(a.upah_dibayarkan), 0) AS total_upah_filtered,
+         COALESCE(SUM(CASE WHEN a.status_pembayaran = 'Sudah Dibayar' THEN a.upah_dibayarkan ELSE 0 END), 0) AS total_upah_dibayarkan,
+         COALESCE(SUM(CASE WHEN a.status_pembayaran = 'Belum Dibayar' THEN a.upah_dibayarkan ELSE 0 END), 0) AS total_upah_belum_dibayar
        FROM absensi_pekerja a
        JOIN pekerja pk ON a.pekerja_id = pk.id
        LEFT JOIN lahan l ON a.lahan_id = l.id
@@ -968,6 +998,8 @@ app.get('/api/absensi', async (req, res) => {
 
     const total = Number(countResult.total);
     const total_upah = Number(countResult.total_upah_filtered);
+    const total_upah_dibayarkan = Number(countResult.total_upah_dibayarkan);
+    const total_upah_belum_dibayar = Number(countResult.total_upah_belum_dibayar);
 
     const dataSql = `
       SELECT 
@@ -977,6 +1009,8 @@ app.get('/api/absensi', async (req, res) => {
         DATE_FORMAT(a.tanggal, '%Y-%m-%d') AS tanggal,
         a.status_kehadiran,
         a.upah_dibayarkan,
+        a.status_pembayaran,
+        DATE_FORMAT(a.tanggal_bayar, '%Y-%m-%d') AS tanggal_bayar,
         a.keterangan,
         a.created_at,
         a.updated_at,
@@ -1001,6 +1035,8 @@ app.get('/api/absensi', async (req, res) => {
       data: rows,
       summary: {
         total_upah,
+        total_upah_dibayarkan,
+        total_upah_belum_dibayar,
       },
       pagination: {
         page,
@@ -1018,7 +1054,16 @@ app.get('/api/absensi', async (req, res) => {
 // POST /api/absensi (single input)
 app.post('/api/absensi', async (req, res) => {
   try {
-    const { pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, keterangan } = req.body;
+    const {
+      pekerja_id,
+      lahan_id,
+      tanggal,
+      status_kehadiran,
+      upah_dibayarkan,
+      status_pembayaran,
+      tanggal_bayar,
+      keterangan,
+    } = req.body;
 
     if (!pekerja_id) {
       return res.status(400).json({ success: false, message: 'Pekerja wajib dipilih' });
@@ -1029,6 +1074,8 @@ app.post('/api/absensi', async (req, res) => {
 
     const upah = Number(upah_dibayarkan) >= 0 ? Number(upah_dibayarkan) : 0;
     const targetLahanId = lahan_id ? parseInt(lahan_id, 10) : null;
+    const statusBayar = status_pembayaran === 'Belum Dibayar' ? 'Belum Dibayar' : 'Sudah Dibayar';
+    const tglBayar = statusBayar === 'Sudah Dibayar' ? (tanggal_bayar || tanggal) : null;
 
     // Check if duplicate for same worker on same day
     const [exist] = await pool.query(
@@ -1043,9 +1090,11 @@ app.post('/api/absensi', async (req, res) => {
           lahan_id = ?, 
           status_kehadiran = ?, 
           upah_dibayarkan = ?, 
+          status_pembayaran = ?,
+          tanggal_bayar = ?,
           keterangan = ?
          WHERE id = ?`,
-        [targetLahanId, status_kehadiran || 'Hadir', upah, keterangan?.trim() || null, exist[0].id]
+        [targetLahanId, status_kehadiran || 'Hadir', upah, statusBayar, tglBayar, keterangan?.trim() || null, exist[0].id]
       );
 
       const [updated] = await pool.query(`
@@ -1064,14 +1113,16 @@ app.post('/api/absensi', async (req, res) => {
     }
 
     const [result] = await pool.query(
-      `INSERT INTO absensi_pekerja (pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, keterangan) 
-       VALUES (?, ?, ?, ?, ?, ?)`,
+      `INSERT INTO absensi_pekerja (pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, status_pembayaran, tanggal_bayar, keterangan) 
+       VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
       [
         parseInt(pekerja_id, 10),
         targetLahanId,
         tanggal,
         status_kehadiran || 'Hadir',
         upah,
+        statusBayar,
+        tglBayar,
         keterangan?.trim() || null,
       ]
     );
@@ -1099,7 +1150,7 @@ app.post('/api/absensi', async (req, res) => {
 app.post('/api/absensi/batch', async (req, res) => {
   const connection = await pool.getConnection();
   try {
-    const { tanggal, default_lahan_id, entries } = req.body;
+    const { tanggal, default_lahan_id, default_status_pembayaran, entries } = req.body;
 
     if (!tanggal) {
       return res.status(400).json({ success: false, message: 'Tanggal absensi wajib diisi' });
@@ -1111,21 +1162,25 @@ app.post('/api/absensi/batch', async (req, res) => {
     await connection.beginTransaction();
 
     for (const item of entries) {
-      const { pekerja_id, lahan_id, status_kehadiran, upah_dibayarkan, keterangan } = item;
+      const { pekerja_id, lahan_id, status_kehadiran, upah_dibayarkan, status_pembayaran, tanggal_bayar, keterangan } = item;
       if (!pekerja_id) continue;
 
       const currentLahanId = lahan_id || default_lahan_id || null;
       const upah = Number(upah_dibayarkan) >= 0 ? Number(upah_dibayarkan) : 0;
       const status = status_kehadiran || 'Hadir';
+      const statusBayar = status_pembayaran || default_status_pembayaran || 'Sudah Dibayar';
+      const tglBayar = statusBayar === 'Sudah Dibayar' ? (tanggal_bayar || tanggal) : null;
 
       // UPSERT using INSERT ... ON DUPLICATE KEY UPDATE
       await connection.query(
-        `INSERT INTO absensi_pekerja (pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, keterangan)
-         VALUES (?, ?, ?, ?, ?, ?)
+        `INSERT INTO absensi_pekerja (pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, status_pembayaran, tanggal_bayar, keterangan)
+         VALUES (?, ?, ?, ?, ?, ?, ?, ?)
          ON DUPLICATE KEY UPDATE
            lahan_id = VALUES(lahan_id),
            status_kehadiran = VALUES(status_kehadiran),
            upah_dibayarkan = VALUES(upah_dibayarkan),
+           status_pembayaran = VALUES(status_pembayaran),
+           tanggal_bayar = VALUES(tanggal_bayar),
            keterangan = VALUES(keterangan)`,
         [
           parseInt(pekerja_id, 10),
@@ -1133,6 +1188,8 @@ app.post('/api/absensi/batch', async (req, res) => {
           tanggal,
           status,
           upah,
+          statusBayar,
+          tglBayar,
           keterangan?.trim() || null,
         ]
       );
@@ -1157,7 +1214,16 @@ app.post('/api/absensi/batch', async (req, res) => {
 app.put('/api/absensi/:id', async (req, res) => {
   try {
     const { id } = req.params;
-    const { pekerja_id, lahan_id, tanggal, status_kehadiran, upah_dibayarkan, keterangan } = req.body;
+    const {
+      pekerja_id,
+      lahan_id,
+      tanggal,
+      status_kehadiran,
+      upah_dibayarkan,
+      status_pembayaran,
+      tanggal_bayar,
+      keterangan,
+    } = req.body;
 
     const [check] = await pool.query('SELECT * FROM absensi_pekerja WHERE id = ?', [id]);
     if (check.length === 0) {
@@ -1166,6 +1232,8 @@ app.put('/api/absensi/:id', async (req, res) => {
 
     const upah = Number(upah_dibayarkan) >= 0 ? Number(upah_dibayarkan) : 0;
     const targetLahanId = lahan_id ? parseInt(lahan_id, 10) : null;
+    const statusBayar = status_pembayaran || check[0].status_pembayaran || 'Sudah Dibayar';
+    const tglBayar = statusBayar === 'Sudah Dibayar' ? (tanggal_bayar || check[0].tanggal_bayar || tanggal || check[0].tanggal) : null;
 
     await pool.query(
       `UPDATE absensi_pekerja SET 
@@ -1174,6 +1242,8 @@ app.put('/api/absensi/:id', async (req, res) => {
         tanggal = ?, 
         status_kehadiran = ?, 
         upah_dibayarkan = ?, 
+        status_pembayaran = ?,
+        tanggal_bayar = ?,
         keterangan = ?
        WHERE id = ?`,
       [
@@ -1182,6 +1252,8 @@ app.put('/api/absensi/:id', async (req, res) => {
         tanggal || check[0].tanggal,
         status_kehadiran || 'Hadir',
         upah,
+        statusBayar,
+        tglBayar,
         keterangan?.trim() || null,
         id,
       ]
@@ -1202,6 +1274,229 @@ app.put('/api/absensi/:id', async (req, res) => {
     });
   } catch (error) {
     console.error('Error update absensi:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// PATCH /api/absensi/:id/status-pembayaran (Toggle or update status bayar upah)
+app.patch('/api/absensi/:id/status-pembayaran', async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { status_pembayaran, tanggal_bayar } = req.body;
+
+    const [check] = await pool.query('SELECT * FROM absensi_pekerja WHERE id = ?', [id]);
+    if (check.length === 0) {
+      return res.status(404).json({ success: false, message: 'Data absensi tidak ditemukan' });
+    }
+
+    const currentStatus = check[0].status_pembayaran;
+    const nextStatus = status_pembayaran || (currentStatus === 'Sudah Dibayar' ? 'Belum Dibayar' : 'Sudah Dibayar');
+    const todayStr = new Date().toISOString().slice(0, 10);
+    const nextTanggalBayar = nextStatus === 'Sudah Dibayar' ? (tanggal_bayar || check[0].tanggal_bayar || todayStr) : null;
+
+    await pool.query(
+      'UPDATE absensi_pekerja SET status_pembayaran = ?, tanggal_bayar = ? WHERE id = ?',
+      [nextStatus, nextTanggalBayar, id]
+    );
+
+    const [updated] = await pool.query(`
+      SELECT 
+        a.id,
+        a.pekerja_id,
+        a.lahan_id,
+        DATE_FORMAT(a.tanggal, '%Y-%m-%d') AS tanggal,
+        a.status_kehadiran,
+        a.upah_dibayarkan,
+        a.status_pembayaran,
+        DATE_FORMAT(a.tanggal_bayar, '%Y-%m-%d') AS tanggal_bayar,
+        a.keterangan,
+        pk.nama AS nama_pekerja,
+        l.nama_lahan
+      FROM absensi_pekerja a
+      JOIN pekerja pk ON a.pekerja_id = pk.id
+      LEFT JOIN lahan l ON a.lahan_id = l.id
+      WHERE a.id = ?
+    `, [id]);
+
+    res.json({
+      success: true,
+      message: `Status upah berhasil diubah menjadi "${nextStatus}"`,
+      data: updated[0],
+    });
+  } catch (error) {
+    console.error('Error toggle status upah:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// POST /api/absensi/bulk-bayar (Tandai banyak upah absensi sebagai Sudah Dibayar sekaligus)
+app.post('/api/absensi/bulk-bayar', async (req, res) => {
+  try {
+    const { ids, tanggal_bayar } = req.body;
+    if (!Array.isArray(ids) || ids.length === 0) {
+      return res.status(400).json({ success: false, message: 'Daftar absensi tidak boleh kosong' });
+    }
+
+    const tgl = tanggal_bayar || new Date().toISOString().slice(0, 10);
+    await pool.query(
+      'UPDATE absensi_pekerja SET status_pembayaran = ?, tanggal_bayar = ? WHERE id IN (?)',
+      ['Sudah Dibayar', tgl, ids]
+    );
+
+    res.json({
+      success: true,
+      message: `Berhasil menandai ${ids.length} absensi pekerja sebagai Sudah Dibayar`,
+    });
+  } catch (error) {
+    console.error('Error bulk bayar absensi:', error);
+    res.status(500).json({ success: false, message: error.message });
+  }
+});
+
+// GET /api/upah/rekap (Rekapitulasi Upah Pekerja yang Sudah Dibayarkan)
+app.get('/api/upah/rekap', async (req, res) => {
+  try {
+    const { startDate, endDate, lahan_id, pekerja_id, status_pembayaran, search } = req.query;
+
+    const whereClauses = [];
+    const params = [];
+
+    if (search) {
+      whereClauses.push('(pk.nama LIKE ? OR pk.jabatan LIKE ?)');
+      const sp = `%${search.trim()}%`;
+      params.push(sp, sp);
+    }
+
+    if (pekerja_id) {
+      whereClauses.push('a.pekerja_id = ?');
+      params.push(parseInt(pekerja_id, 10));
+    }
+
+    if (lahan_id) {
+      whereClauses.push('a.lahan_id = ?');
+      params.push(parseInt(lahan_id, 10));
+    }
+
+    if (startDate) {
+      whereClauses.push('a.tanggal >= ?');
+      params.push(startDate);
+    }
+
+    if (endDate) {
+      whereClauses.push('a.tanggal <= ?');
+      params.push(endDate);
+    }
+
+    if (status_pembayaran) {
+      whereClauses.push('a.status_pembayaran = ?');
+      params.push(status_pembayaran);
+    }
+
+    const whereSql = whereClauses.length > 0 ? `WHERE ${whereClauses.join(' AND ')}` : '';
+
+    const query = `
+      SELECT 
+        a.id,
+        a.pekerja_id,
+        a.lahan_id,
+        DATE_FORMAT(a.tanggal, '%Y-%m-%d') AS tanggal,
+        a.status_kehadiran,
+        a.upah_dibayarkan,
+        a.status_pembayaran,
+        DATE_FORMAT(a.tanggal_bayar, '%Y-%m-%d') AS tanggal_bayar,
+        a.keterangan,
+        pk.nama AS nama_pekerja,
+        pk.no_hp,
+        pk.jabatan,
+        pk.upah_harian_standar,
+        pk.status AS status_pekerja,
+        COALESCE(l.nama_lahan, '-') AS nama_lahan
+      FROM absensi_pekerja a
+      JOIN pekerja pk ON a.pekerja_id = pk.id
+      LEFT JOIN lahan l ON a.lahan_id = l.id
+      ${whereSql}
+      ORDER BY a.tanggal DESC, a.id DESC
+    `;
+
+    const [rows] = await pool.query(query, params);
+
+    const mapPekerja = {};
+    let grand_total_dibayarkan = 0;
+    let grand_total_belum_dibayar = 0;
+    let grand_total_semua = 0;
+
+    rows.forEach((row) => {
+      const upah = Number(row.upah_dibayarkan) || 0;
+      grand_total_semua += upah;
+      if (row.status_pembayaran === 'Sudah Dibayar') {
+        grand_total_dibayarkan += upah;
+      } else {
+        grand_total_belum_dibayar += upah;
+      }
+
+      if (!mapPekerja[row.pekerja_id]) {
+        mapPekerja[row.pekerja_id] = {
+          pekerja_id: row.pekerja_id,
+          nama: row.nama_pekerja,
+          no_hp: row.no_hp,
+          jabatan: row.jabatan,
+          upah_harian_standar: Number(row.upah_harian_standar),
+          status_pekerja: row.status_pekerja,
+          total_kehadiran: 0,
+          total_upah_dibayarkan: 0,
+          total_upah_belum_dibayar: 0,
+          total_upah_keseluruhan: 0,
+          rincian: [],
+        };
+      }
+
+      mapPekerja[row.pekerja_id].total_kehadiran += 1;
+      mapPekerja[row.pekerja_id].total_upah_keseluruhan += upah;
+
+      if (row.status_pembayaran === 'Sudah Dibayar') {
+        mapPekerja[row.pekerja_id].total_upah_dibayarkan += upah;
+      } else {
+        mapPekerja[row.pekerja_id].total_upah_belum_dibayar += upah;
+      }
+
+      mapPekerja[row.pekerja_id].rincian.push({
+        id: row.id,
+        tanggal: row.tanggal,
+        nama_lahan: row.nama_lahan,
+        status_kehadiran: row.status_kehadiran,
+        upah_dibayarkan: upah,
+        status_pembayaran: row.status_pembayaran,
+        tanggal_bayar: row.tanggal_bayar,
+        keterangan: row.keterangan,
+      });
+    });
+
+    const pekerjaList = Object.values(mapPekerja)
+      .map((p) => ({
+        ...p,
+        status_bayar_summary:
+          p.total_upah_belum_dibayar === 0
+            ? 'Lunas'
+            : p.total_upah_dibayarkan > 0
+            ? 'Sebagian'
+            : 'Belum Dibayar',
+      }))
+      .sort((a, b) => b.total_upah_dibayarkan - a.total_upah_dibayarkan);
+
+    res.json({
+      success: true,
+      summary: {
+        grand_total_dibayarkan,
+        grand_total_belum_dibayar,
+        grand_total_semua,
+        grand_total_kehadiran: rows.length,
+        grand_total_pekerja: pekerjaList.length,
+      },
+      data: pekerjaList,
+      raw_logs: rows,
+    });
+  } catch (error) {
+    console.error('Error rekap upah:', error);
     res.status(500).json({ success: false, message: error.message });
   }
 });
@@ -1277,7 +1572,7 @@ app.get('/api/laporan/ringkasan', async (req, res) => {
       ORDER BY p.tanggal ASC
     `, workParams);
 
-    // Ambil list absensi pekerja
+    // Ambil list absensi pekerja (dengan status pembayaran dan tanggal bayar)
     const [absensiList] = await pool.query(`
       SELECT 
         a.id,
@@ -1286,8 +1581,11 @@ app.get('/api/laporan/ringkasan', async (req, res) => {
         DATE_FORMAT(a.tanggal, '%Y-%m-%d') AS tanggal,
         a.status_kehadiran,
         a.upah_dibayarkan,
+        a.status_pembayaran,
+        DATE_FORMAT(a.tanggal_bayar, '%Y-%m-%d') AS tanggal_bayar,
         a.keterangan,
         pk.nama AS nama_pekerja,
+        pk.no_hp,
         pk.jabatan,
         COALESCE(l.nama_lahan, '-') AS nama_lahan
       FROM absensi_pekerja a
@@ -1299,19 +1597,66 @@ app.get('/api/laporan/ringkasan', async (req, res) => {
 
     const total_biaya_kerja = pekerjaanList.reduce((acc, cur) => acc + Number(cur.biaya), 0);
     const total_upah_absensi = absensiList.reduce((acc, cur) => acc + Number(cur.upah_dibayarkan), 0);
+    const total_upah_dibayarkan = absensiList
+      .filter((a) => a.status_pembayaran === 'Sudah Dibayar')
+      .reduce((acc, cur) => acc + Number(cur.upah_dibayarkan), 0);
+    const total_upah_belum_dibayar = absensiList
+      .filter((a) => a.status_pembayaran === 'Belum Dibayar')
+      .reduce((acc, cur) => acc + Number(cur.upah_dibayarkan), 0);
     const total_keseluruhan = total_biaya_kerja + total_upah_absensi;
+
+    // Grouping Rekap Upah per Pekerja
+    const pekerjaMap = {};
+    absensiList.forEach((a) => {
+      const upah = Number(a.upah_dibayarkan) || 0;
+      if (!pekerjaMap[a.pekerja_id]) {
+        pekerjaMap[a.pekerja_id] = {
+          pekerja_id: a.pekerja_id,
+          nama_pekerja: a.nama_pekerja,
+          no_hp: a.no_hp,
+          jabatan: a.jabatan,
+          total_hari: 0,
+          total_upah_dibayarkan: 0,
+          total_upah_belum_dibayar: 0,
+          total_upah: 0,
+        };
+      }
+      pekerjaMap[a.pekerja_id].total_hari += 1;
+      pekerjaMap[a.pekerja_id].total_upah += upah;
+      if (a.status_pembayaran === 'Sudah Dibayar') {
+        pekerjaMap[a.pekerja_id].total_upah_dibayarkan += upah;
+      } else {
+        pekerjaMap[a.pekerja_id].total_upah_belum_dibayar += upah;
+      }
+    });
+
+    const rekap_upah_pekerja = Object.values(pekerjaMap)
+      .map((p) => ({
+        ...p,
+        status_bayar:
+          p.total_upah_belum_dibayar === 0
+            ? 'Lunas'
+            : p.total_upah_dibayarkan > 0
+            ? 'Sebagian'
+            : 'Belum Dibayar',
+      }))
+      .sort((a, b) => b.total_upah_dibayarkan - a.total_upah_dibayarkan);
 
     res.json({
       success: true,
       data: {
         pekerjaan: pekerjaanList,
         absensi: absensiList,
+        rekap_upah_pekerja,
         summary: {
           total_kegiatan_kerja: pekerjaanList.length,
           total_biaya_kerja,
           total_kehadiran_pekerja: absensiList.length,
           total_upah_absensi,
+          total_upah_dibayarkan,
+          total_upah_belum_dibayar,
           total_keseluruhan,
+          total_pekerja_terlibat: rekap_upah_pekerja.length,
         },
       },
     });

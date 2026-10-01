@@ -59,6 +59,8 @@ CREATE TABLE IF NOT EXISTS `absensi_pekerja` (
   `tanggal` DATE NOT NULL,
   `status_kehadiran` ENUM('Hadir', 'Setengah Hari', 'Izin', 'Sakit', 'Alpa') NOT NULL DEFAULT 'Hadir',
   `upah_dibayarkan` DECIMAL(14, 2) NOT NULL DEFAULT 0.00,
+  `status_pembayaran` ENUM('Sudah Dibayar', 'Belum Dibayar') NOT NULL DEFAULT 'Sudah Dibayar',
+  `tanggal_bayar` DATE DEFAULT NULL,
   `keterangan` TEXT DEFAULT NULL,
   `created_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
   `updated_at` TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
@@ -66,6 +68,7 @@ CREATE TABLE IF NOT EXISTS `absensi_pekerja` (
   INDEX `idx_absensi_lahan_id` (`lahan_id`),
   INDEX `idx_absensi_tanggal` (`tanggal`),
   INDEX `idx_absensi_status` (`status_kehadiran`),
+  INDEX `idx_absensi_bayar` (`status_pembayaran`),
   UNIQUE KEY `unique_absensi_hari` (`pekerja_id`, `tanggal`),
   CONSTRAINT `fk_absensi_pekerja` FOREIGN KEY (`pekerja_id`) REFERENCES `pekerja` (`id`) ON DELETE CASCADE,
   CONSTRAINT `fk_absensi_lahan` FOREIGN KEY (`lahan_id`) REFERENCES `lahan` (`id`) ON DELETE SET NULL
@@ -147,16 +150,16 @@ INSERT INTO `pekerjaan_lahan` (`lahan_id`, `tanggal`, `jenis_pekerjaan`, `biaya`
 (3, '2026-09-28', 'Penyemprotan Hama & Fungisida', 350000.00, NULL, 'Pencegahan hama thrips dan kutu kebul serta layu fusarium.');
 
 -- Sample Data: Absensi Pekerja
-INSERT INTO `absensi_pekerja` (`pekerja_id`, `lahan_id`, `tanggal`, `status_kehadiran`, `upah_dibayarkan`, `keterangan`) VALUES
-(1, 1, '2026-09-25', 'Hadir', 150000.00, 'Memimpin tim penanaman jagung'),
-(2, 1, '2026-09-25', 'Hadir', 130000.00, 'Membantu distribusi bibit dan logistik'),
-(3, 1, '2026-09-25', 'Hadir', 100000.00, 'Menanam bibit bedeng 1-10'),
-(4, 1, '2026-09-25', 'Hadir', 90000.00, 'Menanam bibit bedeng 11-20'),
-(5, 1, '2026-09-25', 'Setengah Hari', 50000.00, 'Pulang pukul 11:30 urusan keluarga'),
-(6, 1, '2026-09-25', 'Hadir', 90000.00, 'Penyiraman awal setelah tanam'),
+INSERT INTO `absensi_pekerja` (`pekerja_id`, `lahan_id`, `tanggal`, `status_kehadiran`, `upah_dibayarkan`, `status_pembayaran`, `tanggal_bayar`, `keterangan`) VALUES
+(1, 1, '2026-09-25', 'Hadir', 150000.00, 'Sudah Dibayar', '2026-09-25', 'Memimpin tim penanaman jagung'),
+(2, 1, '2026-09-25', 'Hadir', 130000.00, 'Sudah Dibayar', '2026-09-25', 'Membantu distribusi bibit dan logistik'),
+(3, 1, '2026-09-25', 'Hadir', 100000.00, 'Sudah Dibayar', '2026-09-25', 'Menanam bibit bedeng 1-10'),
+(4, 1, '2026-09-25', 'Hadir', 90000.00, 'Sudah Dibayar', '2026-09-25', 'Menanam bibit bedeng 11-20'),
+(5, 1, '2026-09-25', 'Setengah Hari', 50000.00, 'Sudah Dibayar', '2026-09-25', 'Pulang pukul 11:30 urusan keluarga'),
+(6, 1, '2026-09-25', 'Hadir', 90000.00, 'Sudah Dibayar', '2026-09-25', 'Penyiraman awal setelah tanam'),
 
-(1, 2, '2026-09-27', 'Hadir', 150000.00, 'Pengawasan pemupukan sawah lebak'),
-(2, 2, '2026-09-27', 'Izin', 0.00, 'Izin servis traktor'),
-(3, 2, '2026-09-27', 'Hadir', 100000.00, 'Aplikasi pupuk urea dan NPK'),
-(4, 2, '2026-09-27', 'Hadir', 90000.00, 'Pembersihan pematang sawah'),
-(5, 2, '2026-09-27', 'Hadir', 100000.00, 'Perbaikan saluran air masuk');
+(1, 2, '2026-09-27', 'Hadir', 150000.00, 'Sudah Dibayar', '2026-09-27', 'Pengawasan pemupukan sawah lebak'),
+(2, 2, '2026-09-27', 'Izin', 0.00, 'Sudah Dibayar', NULL, 'Izin servis traktor'),
+(3, 2, '2026-09-27', 'Hadir', 100000.00, 'Sudah Dibayar', '2026-09-27', 'Aplikasi pupuk urea dan NPK'),
+(4, 2, '2026-09-27', 'Hadir', 90000.00, 'Sudah Dibayar', '2026-09-27', 'Pembersihan pematang sawah'),
+(5, 2, '2026-09-27', 'Hadir', 100000.00, 'Belum Dibayar', NULL, 'Perbaikan saluran air masuk (upah belum diambil)');

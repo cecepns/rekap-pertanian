@@ -13,6 +13,7 @@ import {
   Clock,
   MapPin,
   ChevronRight,
+  Banknote,
 } from 'lucide-react';
 import { request } from '@/utils/request';
 import { API_ENDPOINTS } from '@/utils/endpoints';
@@ -83,6 +84,8 @@ export default function DashboardPage() {
     pekerja_aktif = 0,
     total_absensi = 0,
     total_upah_absensi = 0,
+    total_upah_dibayarkan = 0,
+    total_upah_belum_dibayar = 0,
     total_pengeluaran = 0,
     biaya_per_lahan = [],
     jenis_pekerjaan_stats = [],
@@ -126,6 +129,13 @@ export default function DashboardPage() {
             >
               <CalendarCheck2 className="h-4 w-4 text-emerald-300" />
               Input Absensi Pekerja
+            </button>
+            <button
+              onClick={() => navigate('/upah-pekerja')}
+              className="inline-flex items-center gap-2 rounded-xl bg-teal-900/60 backdrop-blur-md border border-teal-400/30 px-4 py-2.5 text-xs sm:text-sm font-semibold text-white hover:bg-teal-900/80 transition-colors"
+            >
+              <Banknote className="h-4 w-4 text-teal-300" />
+              Rekap Upah Pekerja
             </button>
           </div>
         </div>
@@ -182,23 +192,35 @@ export default function DashboardPage() {
         <div className="rounded-2xl border border-slate-100 bg-white p-5 shadow-sm hover:shadow-md transition-shadow">
           <div className="flex items-center justify-between mb-3">
             <span className="text-xs font-bold uppercase tracking-wider text-slate-400">
-              Upah Absensi
+              Upah Pekerja
             </span>
             <div className="flex h-10 w-10 items-center justify-center rounded-xl bg-blue-50 text-blue-600">
-              <CalendarCheck2 className="h-5 w-5" />
+              <Banknote className="h-5 w-5" />
             </div>
           </div>
           <div className="text-2xl font-extrabold text-blue-700">
             {formatRupiah(total_upah_absensi)}
           </div>
-          <div className="mt-2 flex items-center justify-between text-xs text-slate-500">
-            <span>{total_absensi} log kehadiran tercatat</span>
-            <button
-              onClick={() => navigate('/absensi')}
-              className="text-brand-600 hover:text-brand-700 font-semibold inline-flex items-center"
-            >
-              Detail <ArrowUpRight className="h-3 w-3" />
-            </button>
+          <div className="mt-2 flex flex-col gap-1 text-xs">
+            <div className="flex items-center justify-between">
+              <span className="text-emerald-600 font-medium">Sudah Dibayar:</span>
+              <span className="font-bold text-emerald-700">{formatRupiah(total_upah_dibayarkan)}</span>
+            </div>
+            {total_upah_belum_dibayar > 0 && (
+              <div className="flex items-center justify-between text-amber-600">
+                <span>Belum Dibayar:</span>
+                <span className="font-semibold">{formatRupiah(total_upah_belum_dibayar)}</span>
+              </div>
+            )}
+            <div className="pt-1 flex items-center justify-between border-t border-slate-100 mt-0.5 text-slate-400">
+              <span>{total_absensi} log absensi</span>
+              <button
+                onClick={() => navigate('/upah-pekerja')}
+                className="text-brand-600 hover:text-brand-700 font-semibold inline-flex items-center"
+              >
+                Rincian <ArrowUpRight className="h-3 w-3" />
+              </button>
+            </div>
           </div>
         </div>
 

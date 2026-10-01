@@ -5,6 +5,7 @@ import {
   Sprout,
   Shovel,
   CalendarCheck2,
+  Banknote,
   Users,
   FileBarChart2,
   ListChecks,
@@ -41,6 +42,12 @@ export default function Sidebar({ isOpen, onClose }) {
       label: 'Absensi Pekerja',
       icon: CalendarCheck2,
       badge: 'Mandor',
+    },
+    {
+      path: '/upah-pekerja',
+      label: 'Upah Pekerja',
+      icon: Banknote,
+      badge: 'Dibayar',
     },
     {
       path: '/pekerja',
